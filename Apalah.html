@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SakuPintar AI | Pro Flow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        
+        html { scroll-behavior: smooth; }
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #05070a; 
+            color: #e2e8f0; 
+            transition: background-color 0.8s ease;
+        }
+        
+        .glass { 
+            background: rgba(255, 255, 255, 0.03); 
+            backdrop-filter: blur(15px); 
+            border: 1px solid rgba(255,255,255,0.06); 
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+        }
+        
+        .glass:hover { border-color: rgba(255,255,255,0.15); transform: translateY(-3px); }
+        
+        input, select, button { transition: all 0.3s ease !important; }
+        
+        /* Smooth scrolling untuk riwayat */
+        .history-scroll { scrollbar-width: thin; scrollbar-color: #334155 #05070a; }
+        
+        .fade-in { animation: fadeIn 0.8s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        #bot-avatar {
+            filter: drop-shadow(0 0 15px rgba(99, 102, 241, 0.4));
+            animation: float 4s ease-in-out infinite;
+        }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-12px); } }
+        
+        /* Efek smooth teks quote */
+        #influencer-quote, #quote-author { transition: opacity 0.5s ease; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <header class="max-w-7xl mx-auto mb-8 fade-in">
+        <h1 class="text-3xl font-black text-white tracking-tighter">
+            Saku<span class="text-indigo-500">Pintar</span>.AI
+        </h1>
+        <p class="text-slate-500 text-xs uppercase tracking-widest font-bold mt-1">
+            Manajemen Keuangan Pintar & Analisis AI
+        </p>
+    </header>
+
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 fade-in">
+        <!-- Sidebar Kiri -->
+        <div class="lg:col-span-3 space-y-6">
+            <div class="glass p-6 rounded-3xl">
+                <h2 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Set Target</h2>
+                <input type="number" id="target" oninput="saveData()" placeholder="Target Total (Rp)" class="w-full bg-black/20 border border-slate-800 p-3 rounded-2xl mb-2 text-sm outline-none focus:border-emerald-500">
+                <input type="number" id="months" oninput="saveData()" placeholder="Durasi (Bulan)" class="w-full bg-black/20 border border-slate-800 p-3 rounded-2xl text-sm outline-none focus:border-emerald-500">
+            </div>
+            
+            <div class="glass p-6 rounded-3xl">
+                <h2 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Transaksi Baru</h2>
+                <input type="text" id="desc" placeholder="Keterangan" class="w-full bg-black/20 border border-slate-800 p-3 rounded-xl mb-2 text-sm outline-none focus:border-blue-500">
+                <input type="number" id="amt" placeholder="Nominal" class="w-full bg-black/20 border border-slate-800 p-3 rounded-xl mb-2 text-sm outline-none focus:border-blue-500">
+                <select id="type" class="w-full bg-black/20 border border-slate-800 p-3 rounded-xl mb-2 text-sm outline-none cursor-pointer">
+                    <option value="pemasukan">Pemasukan (+)</option>
+                    <option value="pengeluaran">Pengeluaran (-)</option>
+                </select>
+                <select id="category" class="w-full bg-black/20 border border-slate-800 p-3 rounded-xl mb-4 text-sm outline-none cursor-pointer">
+                    <option value="Gaji/Bonus">Gaji/Bonus</option>
+                    <option value="Makan/Minum">Makan/Minum</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Hiburan">Hiburan</option>
+                    <option value="Tagihan">Tagihan</option>
+                </select>
+                <button onclick="addTx()" class="w-full bg-white text-black py-3 rounded-2xl font-black text-xs hover:bg-emerald-400 hover:scale-[1.02] active:scale-[0.98] uppercase tracking-widest">Simpan</button>
+            </div>
+        </div>
+
+        <!-- Konten Tengah -->
+        <div class="lg:col-span-6 space-y-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="glass p-6 rounded-3xl">
+                    <p class="text-[10px] uppercase font-bold text-slate-500">Saldo Net</p>
+                    <h3 id="ui-savings" class="text-xl font-black mt-1">Rp 0</h3>
+                </div>
+                <div class="glass p-6 rounded-3xl">
+                    <p class="text-[10px] uppercase font-bold text-slate-500">Total Pengeluaran</p>
+                    <h3 id="ui-expense" class="text-xl font-black mt-1">Rp 0</h3>
+                </div>
+            </div>
+            
+            <div class="glass p-6 rounded-3xl">
+                <div class="flex justify-between mb-2">
+                    <h2 class="text-[10px] font-black text-slate-500 uppercase">Progres Target</h2>
+                    <span id="progress-perc" class="text-[10px] font-bold text-emerald-400">0%</span>
+                </div>
+                <div class="w-full bg-black/40 rounded-full h-2 overflow-hidden mb-2">
+                    <div id="progress-bar" class="bg-emerald-500 h-full w-[0%] transition-all duration-1000 ease-out"></div>
+                </div>
+            </div>
+
+            <div class="glass p-6 rounded-3xl h-[300px] relative">
+                <div class="absolute top-6 left-6">
+                    <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Analisis</p>
+                    <h3 class="text-xs font-bold text-slate-300">Pengeluaran</h3>
+                </div>
+                <canvas id="myChart" class="mt-8"></canvas>
+            </div>
+        </div>
+
+        <!-- Sidebar Kanan -->
+        <div class="lg:col-span-3 space-y-6">
+            <div class="bg-indigo-900/20 p-6 rounded-3xl border border-indigo-500/30 text-center">
+                <div id="bot-avatar" class="w-16 h-16 mx-auto mb-4">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="avatar-svg" class="w-full h-full text-indigo-400">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                        <circle cx="9" cy="9" r="1" /><circle cx="15" cy="9" r="1" />
+                    </svg>
+                </div>
+                <h2 class="text-[10px] font-black text-indigo-300 uppercase mb-2">Saku-Bot (Analis)</h2>
+                <p id="ai-advice" class="text-[12px] font-medium text-indigo-100 italic transition-opacity">Saku-Bot siap membantu memantau keuangan Anda.</p>
+            </div>
+
+            <div class="glass p-6 rounded-3xl border border-amber-500/10">
+                <h2 class="text-[10px] font-black text-amber-500/80 uppercase mb-2">Pesan Keras</h2>
+                <p id="influencer-quote" class="text-[11px] font-bold italic text-slate-300 mb-2"></p>
+                <p id="quote-author" class="text-[9px] font-black text-amber-500 uppercase tracking-wider mb-4"></p>
+                <button onclick="updateInfluencerQuote()" class="w-full bg-white/5 py-2 rounded-xl text-[9px] font-black uppercase hover:bg-white/10">Ganti Motivasi</button>
+            </div>
+            
+            <button onclick="resetData()" class="w-full bg-red-900/10 border border-red-900/30 text-red-400 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-900/30">Reset Data</button>
+        </div>
+
+        <div class="lg:col-span-12 glass p-6 rounded-3xl">
+            <h2 class="text-[10px] font-black text-slate-500 uppercase mb-4">Riwayat Transaksi</h2>
+            <div class="max-h-[200px] overflow-y-auto history-scroll">
+                <table class="w-full text-xs text-left" id="history-table"></table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let data = JSON.parse(localStorage.getItem('budget_ultimate')) || [];
+        let config = JSON.parse(localStorage.getItem('budget_config')) || {target: 0, months: 1};
+        let chartInstance;
+        
+       const quotes = [
+    // Purbaya Yudhi Sadewa
+    { author: "Purbaya Yudhi Sadewa", text: "Belanja enggak apa-apa, belanja mau yang mahal, mau yang murah, tapi sesuaikan dengan kantong Anda sendiri. Jangan ngutang." },
+    { author: "Purbaya Yudhi Sadewa", text: "Kalau mau berinvestasi di instrumen apa pun, pelajari instrumen itu apa. Jangan ikut-ikutan orang, jangan FOMO. Pelajari instrumennya, maka Anda pasti berhasil." },
+    { author: "Purbaya Yudhi Sadewa", text: "Banyak orang berkoar-koar ekonomi hancur di TikTok, padahal data menunjukkan penerimaan pajak konsumsi naik dan pelaku bisnis terus melakukan ekspansi riil." },
+    { author: "Purbaya Yudhi Sadewa", text: "Mari kita kaya bersama, bukan hanya tentang memegang uang, melainkan mandiri secara finansial dan cerdas mengelola aset sejak muda." },
+    { author: "Purbaya Yudhi Sadewa", text: "Kebebasan finansial itu bukan soal kemampuan Anda untuk membeli segala hal, melainkan kemampuan untuk menahan diri dari keinginan yang tidak perlu." },
+    
+    // Timothy Ronald
+    { author: "Timothy Ronald", text: "Jangan potong biaya kopi Rp50 ribu Anda kalau itu bikin Anda produktif. Pikirkan bagaimana cara meningkatkan penghasilan Anda dari Rp5 juta menjadi Rp50 juta." },
+    { author: "Timothy Ronald", text: "Dunia ini tidak peduli dengan alasanmu. Saat kamu tidur dan bermalas-malasan, kompetisimu di luar sana sedang bekerja 16 jam sehari untuk mengalahkanmu." },
+    { author: "Timothy Ronald", text: "Miskin di usia 20 tahun itu wajar karena itu salah lahirmu. Tapi kalau kamu masih miskin di usia 30 tahun, itu murni salah pilihan hidupmu." },
+    { author: "Timothy Ronald", text: "Uang bukan segalanya, tapi uang adalah alat paling valid untuk membeli kebebasan waktu dan kedaulatan atas hidupmu sendiri." },
+    { author: "Timothy Ronald", text: "Jangan cuma jadi penonton kesuksesan orang lain di media sosial. Turun ke lapangan, ambil risiko, dan eksekusi sekarang juga." },
+    
+    // Influencer & Ahli Lainnya
+    { author: "Raymond Chin", text: "Investasi memang bisa membuatmu kaya, tetapi menabung dan mengontrol gaya hidup adalah hal yang mencegahmu jatuh miskin." },
+    { author: "Raymond Chin", text: "Jangan taruh uang di instrumen yang tidak kamu pahami hanya karena melihat screenshot profit orang lain di internet." },
+    { author: "Andika Sutoro Putra", text: "Pasar saham adalah tempat memindahkan uang dari orang yang tidak sabaran kepada orang yang sabar." },
+    { author: "Doddy Bicara Investasi", text: "Konsistensi investasi kecil setiap bulan jauh lebih mematikan hasilnya dibanding investasi besar yang hanya dilakukan sekali lalu berhenti." },
+    { author: "Felicia Putri Tjiasaka", text: "Dana darurat itu bukan pilihan, itu adalah jaring pengaman wajib sebelum kamu berani memikirkan keuntungan investasi." },
+    { author: "Raditya Dika", text: "Gaya hidup yang dipaksakan hanya untuk dipuji orang lain adalah cara tercepat untuk menghancurkan masa depan finansialmu." },
+    { author: "Samuel Ray", text: "Kunci kenyamanan finansial bukanlah seberapa besar gajimu, melainkan seberapa lebar jarak antara pendapatan dan pengeluaranmu." },
+    { author: "Morgan Housel", text: "Kekayaan sejati adalah aset yang tidak terlihat—mobil mewah yang tidak kamu beli, pakaian mahal yang kamu lewati, dan investasi yang terus tumbuh." },
+    { author: "Morgan Housel", text: "Mengumpulkan uang membutuhkan petualangan dan risiko. Namun, mempertahankan uang membutuhkan hal yang sebaliknya: kerendahan hati dan rasa takut." },
+    { author: "Robert Kiyosaki", text: "Orang kaya membeli aset yang menghasilkan uang. Orang miskin membeli liabilitas yang mereka pikir adalah aset." },
+    { author: "Robert Kiyosaki", text: "Bukan seberapa banyak uang yang Anda hasilkan, melainkan seberapa banyak uang yang bisa Anda simpan dan wariskan ke generasi berikutnya." },
+    { author: "Naval Ravikant", text: "Jika kamu belum kaya, carilah akuntabilitas, carilah leverage, dan pelajari spesifik skill yang tidak bisa digantikan oleh kecerdasan buatan." },
+    { author: "Naval Ravikant", text: "Sewa waktu Anda tidak akan pernah membuatmu kaya. Kamu harus memiliki kepemilikan saham atau bisnis untuk mencapai kebebasan finansial." },
+    { author: "Alex Hormozi", text: "Cara tercepat menghasilkan uang banyak bukan dengan hemat ekstrem, tapi dengan meningkatkan nilai jual keahlian Anda (high-ticket skill)." },
+    { author: "Alex Hormozi", text: "Investasi terbaik di umur 20-an bukan di pasar modal, melainkan di dalam tokomu sendiri atau keahlian kepalamu sendiri." },
+    { author: "Grant Cardone", text: "Jangan pernah menurunkan target finansialmu. Naikkan level tindakan dan kerja kerasmu untuk melampaui target tersebut." },
+    { author: "MJ DeMarco", text: "Gaji bulanan dari pekerjaan korporat adalah perdagangan paling merugikan: Anda menukar 5 hari kerja keras demi 2 hari libur di akhir pekan." },
+    { author: "Dave Ramsey", text: "Kita membeli barang-barang yang tidak kita butuhkan, dengan uang yang tidak kita miliki, untuk mengesankan orang-orang yang tidak kita sukai." },
+    { author: "Warren Buffett", text: "Jika Anda tidak menemukan cara untuk menghasilkan uang saat Anda tidur, Anda akan terus bekerja keras sampai Anda mati." },
+    { author: "Charlie Munger", text: "Sangat sulit untuk sukses jika Anda tidak memiliki kesabaran. Dorongan untuk cepat kaya secara instan adalah hal yang sangat berbahaya." }
+];
+        function updateBotAvatar(net) {
+            const svg = document.getElementById('avatar-svg');
+            const targetVal = parseFloat(config.target) || 0;
+            if(!svg) return;
+            // Menjaga agar transisi warna bot mulus
+            svg.style.transition = "color 0.5s ease";
+
+            if(net < 0) { svg.style.color = "#ef4444"; svg.innerHTML = `<circle cx="12" cy="12" r="10"/><path d="M8 9l2 1.5M16 9l-2 1.5"/><path d="M9 15h6"/>`; }
+            else if (net >= targetVal && targetVal > 0) { svg.style.color = "#3b82f6"; svg.innerHTML = `<circle cx="12" cy="12" r="10"/><path d="M6 9h4l1 2h2l1-2h4"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>`; }
+            else if (net > 0) { svg.style.color = "#10b981"; svg.innerHTML = `<circle cx="12" cy="12" r="10"/><path d="M8 9l2 2m4-2l-2 2"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>`; }
+            else { svg.style.color = "#94a3b8"; svg.innerHTML = `<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="9" r="1"/>`; }
+        }
+
+        function updateInfluencerQuote() {
+            const el = document.getElementById('influencer-quote');
+            const auth = document.getElementById('quote-author');
+            const item = quotes[Math.floor(Math.random() * quotes.length)];
+            
+            el.style.opacity = 0;
+            auth.style.opacity = 0;
+            
+            setTimeout(() => { 
+                el.innerText = `"${item.text}"`; 
+                auth.innerText = `- ${item.author}`;
+                el.style.opacity = 1; 
+                auth.style.opacity = 1;
+            }, 300);
+        }
+
+        function updateUI() {
+            const inc = data.filter(i => i.type === 'pemasukan').reduce((a, b) => a + b.amt, 0);
+            const exp = data.filter(i => i.type === 'pengeluaran').reduce((a, b) => a + b.amt, 0);
+            const net = inc - exp;
+            
+            document.getElementById('ui-savings').innerText = 'Rp ' + net.toLocaleString();
+            document.getElementById('ui-expense').innerText = 'Rp ' + exp.toLocaleString();
+
+            const targetM = (config.target / config.months) || 0;
+            const perc = targetM > 0 ? Math.min((net / targetM) * 100, 100) : 0;
+            document.getElementById('progress-bar').style.width = perc + '%';
+            document.getElementById('progress-perc').innerText = Math.round(perc) + '%';
+            
+            updateBotAvatar(net);
+            
+            document.getElementById('history-table').innerHTML = data.slice().reverse().map(i => `
+                <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                    <td class="py-3 px-2">${i.desc}</td>
+                    <td class="py-3 px-2 text-[10px] text-slate-500 uppercase">${i.category}</td>
+                    <td class="py-3 px-2 text-right font-bold ${i.type === 'pemasukan' ? 'text-emerald-400' : 'text-red-400'}">
+                        ${i.type === 'pemasukan' ? '+' : '-'} Rp ${i.amt.toLocaleString()}
+                    </td>
+                </tr>
+            `).join('');
+            
+            updateChart();
+        }
+
+        function updateChart() {
+            const ctx = document.getElementById('myChart').getContext('2d');
+            const cats = ['Makan/Minum', 'Transport', 'Hiburan', 'Tagihan'];
+            const vals = cats.map(cat => data.filter(i => i.category === cat && i.type === 'pengeluaran').reduce((a, b) => a + b.amt, 0));
+            if(chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, { 
+                type: 'doughnut', 
+                data: { labels: cats, datasets: [{ data: vals, backgroundColor: ['#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'], borderWidth: 0, cutout: '80%' }] }, 
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 10, font: { size: 9 } } } } } 
+            });
+        }
+
+        function addTx() {
+            const desc = document.getElementById('desc').value;
+            const amt = parseFloat(document.getElementById('amt').value);
+            if(!desc || !amt) return alert("Isi keterangan & nominal!");
+            data.push({desc, amt, type: document.getElementById('type').value, category: document.getElementById('category').value});
+            localStorage.setItem('budget_ultimate', JSON.stringify(data));
+            document.getElementById('desc').value = '';
+            document.getElementById('amt').value = '';
+            updateUI();
+        }
+
+        function saveData() {
+            config.target = document.getElementById('target').value;
+            config.months = document.getElementById('months').value;
+            localStorage.setItem('budget_config', JSON.stringify(config));
+            updateUI();
+        }
+
+        function resetData() {
+            if (confirm("⚠️ PERINGATAN: Semua data akan dihapus permanen.")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+        
+        document.getElementById('target').value = config.target || '';
+        document.getElementById('months').value = config.months || '';
+        updateUI();
+        updateInfluencerQuote();
+    </script>
+</body>
+</html>
